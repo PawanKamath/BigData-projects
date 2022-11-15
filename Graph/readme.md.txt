@@ -1,0 +1,1 @@
+execute the commands in order as in "graph.txt"

@@ -1,0 +1,33 @@
+#get the dataset
+
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1Kay7TkrEr-3u1Q34ObOuEhhibpwAaMPj' -O spark.csv	
+
+#shift to scala shell
+/spark/bin/spark-shell
+
+#load the data and create the table
+
+val data = spark.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema","true").load("/spark.csv")
+data.registerTempTable("table")
+
+#Q1
+val counts = spark.sql("select count(*) from table")
+counts.collect.foreach(println)
+
+#Q2
+val noRev= spark.sql("select Restaurant,`No.Reviews` from table order by `No.Reviews` desc limit 1")
+noRev.collect.foreach(println)
+
+#Q3
+val RestaurantName= spark.sql("select Restaurant from table order by length(Restaurant) Desc Limit 1")
+RestaurantName.collect.foreach(println)
+
+#Q4
+val region= spark.sql("select Region,sum(`No.Reviews`) from table group by Region")
+region.collect.foreach(println)
+
+#Q5
+val dataRDD= sc.textFile("./spark.csv")
+val somes= dataRDD.map(line => line.split(",")(4)).filter(line => !(line contains("The")) && !(line contains("of")) && !(line contains("a")))
+
+somes.flatMap(line => line.split(" ")).map(word => (word,1)).reduceByKey(_+_).sortBy(T => T._2, false).first()

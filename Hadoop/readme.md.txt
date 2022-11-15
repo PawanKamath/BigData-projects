@@ -1,0 +1,1 @@
+Refer the report for the procedure to execute Hadoop map-reduce.

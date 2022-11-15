@@ -1,0 +1,61 @@
+#/bin/sh
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FDqa2hJ9rPhLG1YEcvHlfUliLym1ul4u' -O bashdm.csv
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1h62yHjiRXMElbusQdCOM6W0_kgr-sQiv' -O dictionary.csv
+
+sed -i 's/\#]//' bashdm.csv
+sed -i 's/\"//g' bashdm.csv
+
+sed -i 's/Tracy Briggs\-Johnson\-Carver/Tracy Briggs Johnson Carver/' bashdm.csv
+sed -i 's/Veronica Rhodes\-Coppern\-Braiz/Veronica Rhodes Coppern Braiz/' bashdm.csv
+sed -i 's/Ann Brookshire\-Willsworth\-Swain/Ann Brookshire Willsworth Swain/' bashdm.csv
+sed -i 's/James Patch\-Walker\-Willis/James Patch Walker Willis/' bashdm.csv
+
+sed -i 's/\-/\,/g' bashdm.csv
+cut -d, -f1-6 bashdm.csv > bash.csv
+cp bash.csv bashdm.csv
+
+
+
+while read -r var
+do
+        Code=$(echo $var | cut -d ',' -f 4)
+        Country=$(grep $Code dictionary.csv | cut -d '&' -f 3)
+        sed -i "s|${Code}|${Country}|" bashdm.csv
+done < "bashdm.csv"
+
+
+# Data Management
+# 1. SQL
+mysql -e "CREATE DATABASE if not exists Pawandb;"
+mysql -D Pawandb -e "CREATE TABLE if not exists countryTable(idx int primary key not null, Name varchar(60) not null , Age smallint unsigned ,Country varchar(60) ,Height smallint ,Hair_Colour varchar(60));"
+echo "Table  is created"
+sed -i '1d' bashdm.csv
+while IFS= read -r line
+do
+        idx=$(echo $line | cut -d ',' -f 1)
+        name=$(echo $line | cut -d ',' -f 2)
+        age=$(echo $line | cut -d ',' -f 3)
+        country=$(echo $line | cut -d ',' -f 4)
+        height=$(echo $line | cut -d ',' -f 5)
+        hairColour=$(echo $line | cut -d ',' -f 6)
+        mysql -D Pawandb -e "insert into countryTable values('$idx','$name', '$age', '$country', '$height', '$hairColour');"
+done < "bashdm.csv"
+echo "finished inserting the values into table"
+mysql -D Pawandb -e "select Country, avg(Height) from countryTable Group By Country;"
+mysql -D Pawandb -e "select Hair_Colour, max(Height) from countryTable Group By Hair_Colour;"
+
+
+
+#2 MongoDB
+# insert records
+while read -r  line
+do
+        idx=$(echo $line | cut -d ',' -f 1)
+        name=$(echo $line | cut -d ',' -f 2)
+        age=$(echo $line | cut -d ',' -f 3)
+        country=$(echo $line | cut -d ',' -f 4)
+        height=$(echo $line | cut -d ',' -f 5)
+        hairColour=$(echo $line | cut -d ',' -f 6)
+        echo $idx
+        mongo countryMongo_db --eval 'db.pawansTable.insert({id:"'"$idx"'",Name:"'"$name"'",Age:"'"$age"'",Country:"'"$country"'",Height:"'"$height"'",Hair_Colour:"'"$hairColour"'"})'
+done < "bashdm.csv"

@@ -1,0 +1,67 @@
+#get the dataset
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=19Uubzr_jcXGiVse5EJCOmBpLNEHH7YXY' -O hadoop_mirrored.csv
+
+#import libraries
+import org.apache.spark._
+import org.apache.spark.rdd.RDD
+import org.apache.spark.util.IntParam
+import org.apache.spark.graphx._
+import org.apache.spark.graphx.util.GraphGenerators
+
+#Create a harbour class based on the dataset and a function called parseHarbour to split and save the lines.
+
+case class Port(port:String , portNo:Long, Route:String, RouteNo:Long)
+def parsePort(str:String): Port={
+     | var line =str.split(',');
+     | Port(line(0),line(1).toLong,line(2),line(3).toLong)
+     | }
+
+#read the csv file
+var textRDD = sc.textFile("/hadoop_mirrored.csv")
+
+#filter the header from RDD
+textRDD = textRDD.filter(row => row != textRDD.first())
+
+#parse the RDD of csv lines into an RDD of Port classes
+
+val portRDD = textRDD.map(parsePort).cache()
+
+#create Ports RDD with portno and port name
+val ports= portRDD.flatMap(Port => Seq((Port.portNo,Port.port), (Port.RouteNo,Port.Route))).distinct
+val nowhere="nowhere"
+
+# map portid to name
+val portMap = ports.map { case ((port_id), port) => (port_id -> port) }.collect.toMap
+
+#create routes RDD
+val routes = portRDD.map(port => ((port.portNo, port.RouteNo), port.Route)).distinct
+
+#create edges RDD
+
+val edges = routes.map { case ((portno,routeno), route) =>Edge(portno,routeno,route) }
+
+#define the graph
+
+val graph =Graph(ports,edges,nowhere)
+
+#Q2
+graph.triplets.foreach(println)
+
+
+#Q3
+val har = graph.edges.filter { case (Edge(portno,routeno,route)) => route=="Porium_Thirty-one" }.take(5)
+portMap(8516)
+
+
+#Q4
+val associatedRoutes = graph.degrees.collect.sortWith(_._2 > _._2).map(x => (portMap(x._1), x._2)).take(5)    
+
+
+#Q5
+graph.collectNeighborIds(EdgeDirection.Either).map { case (x,y) => (x,y.size) }.sortBy( _._2,ascending=false).map( x=> (portMap(x._1),x._2)).take(10)
+
+
+
+
+
+
